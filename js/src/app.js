@@ -59,8 +59,12 @@ function go(original, cfg) {
 
 var url;
 
-function onPick() {
-	Poppy.accept("image/*").then(offered => {
+var basePoppy = Poppy.with({
+	clientName: "primitive.js"
+});
+
+function onPick(e) {
+	basePoppy.with({ url: e.target.getAttribute('data-poppy') }).accept("image/*").then(offered => {
 		if (!offered) return;
 		window.offered = offered;
 		if (!offered) return;
@@ -97,9 +101,9 @@ function onSubmit(e) {
 	Canvas.original(url, cfg).then(original => go(original, cfg));
 }
 
-function onSave() {
+function onSave(e) {
 	let canvas = document.querySelector('#raster canvas');
-	Poppy.offer('image/png', () => {
+	basePoppy.with({ url: e.target.getAttribute('data-poppy') }).offer('image/png', () => {
 		if (typeof canvas.toBlob === 'function') {
 			return new Promise(resolve => {
 				canvas.toBlob(resolve, 'image/png');
@@ -136,14 +140,18 @@ function onSave() {
 	});
 }
 
+function $$(sel) {
+	return Array.prototype.slice.call(document.querySelectorAll(sel));
+}
+
 function init() {
 	nodes.output.style.display = "none";
 	nodes.types.forEach(input => input.addEventListener("click", syncType));
 	ui.init();
 	syncType();
 	document.querySelector("form").addEventListener("submit", onSubmit);
-	document.querySelector("#pick").addEventListener("click", onPick);
-	document.querySelector("#save").addEventListener("click", onSave);
+	$$(".pick").forEach(button => button.addEventListener("click", onPick));
+	$$(".save").forEach(button => button.addEventListener("click", onSave));
 }
 
 function syncType() {

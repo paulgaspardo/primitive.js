@@ -17,7 +17,11 @@
 		<form>
 			<h3>Pick an image file from a poppy</h3>
 			<section>
-				<section><button id="pick" type="button">Pick from Poppy</button></section>
+				<section>
+					Pick from
+					<button class="pick" type="button" data-poppy="https://f4r.poppy.io/">Flickr Commons (via Poppy.io f4r)</button>
+					<button class="pick" type="button">Another Poppy</button>
+				</section>
 				<section id="thumbnail" style='width: 200px; height: 200px; border: 1px solid black;'></section>
 			</section>
 			<h3>Check or adjust various rendering options</h3>
@@ -85,7 +89,10 @@
 				<label><input type="radio" name="type" value="raster" checked="checked" />Raster image: right-click to save</label><br/>
 				<label><input type="radio" name="type" value="vector" />Vector image: copy&amp;paste data from the text area below</label><br/>
 				<textarea class="vector" id="vector-text"></textarea>
-				<button type="button" id="save">Save to Poppy</button> <span id="savedTo" style="display:none">- saved to <a id="savedToLink"></a></span>
+				Save to 
+				<button type="button" class="save" data-poppy="https://i3r.poppy.io/">imgur (via Poppy.io i3r)</button>
+				<button type="button" class="save">Another Poppy</button>
+				<span id="savedTo" style="display:none">- saved to <a id="savedToLink"></a></span>
 			</div>
 		</section>
 

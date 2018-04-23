@@ -1134,8 +1134,9 @@
 	            let validatedMatchlist = validateMatchlist(matchlist);
 	            dialog = dialog && dialog.open() || this.open();
 	            if (dialog.popup) {
-	                if (this.poppyUrl) {
-	                    dialog.popup.location.replace(this.poppyUrl);
+	                if (this.url) {
+	                    dialog.origins.push(getOrigin(this.url));
+	                    dialog.popup.location.replace(this.url);
 	                } else if (typeof this.launcher === 'function') {
 	                    this.launcher(dialog, validatedMatchlist);
 	                } else if (typeof this.launcher === 'string') {
@@ -1279,7 +1280,7 @@
 	        requestMessage.launch = {
 	            clientName: dialog.opener.clientName,
 	            activityName: dialog.opener.activityName,
-	            service: dialog.opener.poppyUrl
+	            service: dialog.opener.url
 	        };
 	    }
 	    // Inform service of request and wait for connect()
@@ -2596,8 +2597,12 @@
 
 	var url;
 
-	function onPick() {
-		Poppy.accept("image/*").then(offered => {
+	var basePoppy = Poppy.with({
+		clientName: "primitive.js"
+	});
+
+	function onPick(e) {
+		basePoppy.with({ url: e.target.getAttribute('data-poppy') }).accept("image/*").then(offered => {
 			if (!offered) return;
 			window.offered = offered;
 			if (!offered) return;
@@ -2634,9 +2639,9 @@
 		Canvas.original(url, cfg).then(original => go(original, cfg));
 	}
 
-	function onSave() {
+	function onSave(e) {
 		let canvas = document.querySelector('#raster canvas');
-		Poppy.offer('image/png', () => {
+		basePoppy.with({ url: e.target.getAttribute('data-poppy') }).offer('image/png', () => {
 			if (typeof canvas.toBlob === 'function') {
 				return new Promise(resolve => {
 					canvas.toBlob(resolve, 'image/png');
@@ -2673,14 +2678,18 @@
 		});
 	}
 
+	function $$(sel) {
+		return Array.prototype.slice.call(document.querySelectorAll(sel));
+	}
+
 	function init$1() {
 		nodes.output.style.display = "none";
 		nodes.types.forEach(input => input.addEventListener("click", syncType));
 		init();
 		syncType();
 		document.querySelector("form").addEventListener("submit", onSubmit);
-		document.querySelector("#pick").addEventListener("click", onPick);
-		document.querySelector("#save").addEventListener("click", onSave);
+		$$(".pick").forEach(button => button.addEventListener("click", onPick));
+		$$(".save").forEach(button => button.addEventListener("click", onSave));
 	}
 
 	function syncType() {
