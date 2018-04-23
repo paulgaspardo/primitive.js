@@ -75,6 +75,7 @@ export default class Canvas {
 
 		return new Promise(resolve => {
 			let img = new Image();
+			img.crossOrigin = "anonymous";
 			img.src = url;
 			img.onload = e => {
 				let w = img.naturalWidth;

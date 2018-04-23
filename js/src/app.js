@@ -1,6 +1,8 @@
 import * as ui from "./ui.js";
 import Canvas from "./canvas.js";
 import Optimizer from "./optimizer.js";
+import Poppy from "poppyio/use-en.mjs";
+import { dataURItoBlob } from "./util.js";
 
 const nodes = {
 	output: document.querySelector("#output"),
@@ -55,19 +57,83 @@ function go(original, cfg) {
 	document.documentElement.scrollTop = document.documentElement.scrollHeight;
 }
 
+var url;
+
+function onPick() {
+	Poppy.accept("image/*").then(offered => {
+		if (!offered) return;
+		window.offered = offered;
+		if (!offered) return;
+		if (url) URL.revokeObjectURL(url);
+
+		var img = new Image;
+		img.crossOrigin = true;
+		if (offered.data.location) {
+			url = img.src = offered.data.location;
+		} else if (offered.data.contents) {
+			url = img.src = URL.createObjectURL(offered.data.contents);
+		}
+
+		img.onload = () => {
+			var maxDimension = Math.max(img.width, img.height);
+			if (maxDimension > 200) {
+				var fraction = 1;
+				fraction = 200 / maxDimension;
+				img.width = fraction * img.width;
+				img.height = fraction * img.height;
+				document.getElementById('thumbnail').innerHTML = '';
+				document.getElementById('thumbnail').appendChild(img);
+			}
+		};
+	}).catch(error => {
+		console.error(error);
+		alert('Error: ' + error);
+	});
+}
+
 function onSubmit(e) {
 	e.preventDefault();
-
-	let input = document.querySelector("input[type=file]");
-	let url = "test";
-	if (input.files.length > 0) {
-		let file = input.files[0];
-		url = URL.createObjectURL(file);
-	}
-
 	let cfg = ui.getConfig();
-
 	Canvas.original(url, cfg).then(original => go(original, cfg));
+}
+
+function onSave() {
+	let canvas = document.querySelector('#raster canvas');
+	Poppy.offer('image/png', () => {
+		if (typeof canvas.toBlob === 'function') {
+			return new Promise(resolve => {
+				canvas.toBlob(resolve, 'image/png');
+			}).then(blob => {
+				return Promise.resolve({
+					contents: blob
+				});
+			});
+		} else {
+			return {
+				contents: dataURItoBlob(canvas.toDataURL('image/png'))
+			};
+		}
+	}).then(response => {
+		if (!response || !response.data) return;
+		let accepted = response.data;
+		let savedTo = document.getElementById("savedTo");
+		let link = document.getElementById("savedToLink");
+		if (accepted && typeof accepted.link === "string") {
+			savedTo.style.display = "inline";
+			if (accepted.link.startsWith("http://") || accepted.link.startsWith("https://")) {
+				link.textContent = accepted.link;
+				link.href = accepted.link;
+			} else {
+				link.removeAttribute("href");
+				link.textContent = "Possibly unsafe URL " + accepted.link;
+			}
+		} else {
+			savedTo.style.display = "none";
+		}
+	}).catch(error => {
+		console.error(error);
+		alert('Error: ' + error);
+	});
 }
 
 function init() {
@@ -76,6 +142,8 @@ function init() {
 	ui.init();
 	syncType();
 	document.querySelector("form").addEventListener("submit", onSubmit);
+	document.querySelector("#pick").addEventListener("click", onPick);
+	document.querySelector("#save").addEventListener("click", onSave);
 }
 
 function syncType() {
