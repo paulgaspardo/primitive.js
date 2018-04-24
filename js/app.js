@@ -975,13 +975,13 @@
 	                resolve();
 	                if (this.state !== 'closed') {
 	                    this.state = 'closed';
-	                    removeEventListener('unload', this.onUnload);
-	                    // Removing the iframe is what actually closes the popup
+	                    removeEventListener('unload', this.cancel);
+	                    if (this.popup)
+	                        this.proxy.contentWindow.pio_close(this.popup);
 	                    this.proxy.parentNode.removeChild(this.proxy);
 	                }
 	            };
 	        });
-	        this.onUnload = this.cancel.bind(this);
 	    }
 	    /**
 	     * Open up a dialog window, but dont do anything with it yet.
@@ -1022,20 +1022,7 @@
 	                proxy.sandbox = sandbox;
 	            }
 	            // Close the popup when the page is unloaded
-	            addEventListener('unload', this.onUnload);
-	            proxy.contentWindow.addEventListener('unload', () => {
-	                // Since the popup's opener is actually the proxy iframe, the proxy
-	                // the proxy iframe has to be the one to close the popup.
-	                if (this.state === 'closed') {
-	                    // But we don't close until the state of the dialog is "closed"
-	                    // because on Firefox we get an unload event immediately when
-	                    // the window is loaded. Weird. Fortunately on a page unload
-	                    // the parent page gets it's unload event first, so we can set
-	                    // the state to closed just in time.
-	                    if (popup)
-	                        popup.close();
-	                }
-	            });
+	            addEventListener('unload', this.cancel);
 	            // Trigger the browser extension
 	            if (typeof CustomEvent === 'function') {
 	                this.intercepted = !proxy.dispatchEvent(new CustomEvent('https://poppy.io/a/open', {
@@ -1043,6 +1030,14 @@
 	                    cancelable: true
 	                }));
 	            }
+	            let inject = (name, func) => {
+	                proxy.contentWindow[name] = func;
+	                if (!options.noInject) {
+	                    let script = proxy.contentDocument.createElement('script');
+	                    script.innerText = `${ name }=${ func.toString() }`;
+	                    proxy.contentDocument.body.appendChild(script);
+	                }
+	            };
 	            if (!this.intercepted) {
 	                // Actually open the popup window.
 	                let iePrelude = navigator.userAgent.match(/Trident/) && options.iePrelude;
@@ -1050,7 +1045,15 @@
 	                if (!popup) {
 	                    throw new Error('Poppy.io: popup-blocked');
 	                }
-	                popup.location.replace('about:blank');
+	                inject('pio_nav', (popup, url) => {
+	                    popup.location.replace(url);
+	                });
+	                inject('pio_close', popup => {
+	                    popup.close();
+	                });
+	                let script = proxy.contentDocument.createElement('script');
+	                proxy.contentWindow.pio_nav(popup, 'about:blank');
+	                // popup.location.replace('about:blank');
 	                // Detect if the popup is closed. I don't think there's an event
 	                // for us to listen for so we poll. :(
 	                let pollInterval = setInterval(() => {
@@ -1705,6 +1708,10 @@
 	}
 
 	// Export core
+	/**
+	 * Version of poppyio.js
+	 */
+	const version = '0.0.3';
 
 	/** Translated strings used by launchDialog ($Lang$) */
 	var strings = {
@@ -2248,7 +2255,6 @@
 	        let req = new XMLHttpRequest();
 	        req.open('GET', 'https://' + domain + '/.well-known/host-meta.json');
 	        req.onload = () => {
-	            console.log('onload');
 	            if (req.status !== 200)
 	                return reject(Error('Poppy.io: lookup-error, ' + req.status));
 	            try {
@@ -2393,11 +2399,11 @@
 	        $('#clientName').textContent = state.clientName;
 	        $('#activityTitle').textContent = document.title = opener.activityName || translated('connectPoppy');
 	    };
-	    document.write("<div id=box><div id=main><div id=title><h1 id=clientName></h1><h2 id=activityTitle></h2></div><form id=theForm><input id=input type=text name=poppy_identifier> <button data-t=go></button></form><div id=message><p data-t=explanation></p></div><ul id=matchInfo></ul></div></div><div id=modal><div id=modal-box><div class=modal-body id=loading><p data-t=checking></p><div class=modal-buttons><button data-modal-action=cancel data-t=cancel></button></div></div><div class=modal-body id=found><p data-t=sendingYou></p></div><div class=modal-body id=wontWork><p><strong></strong></p><p data-t=wontWorkNowWhat></p><div class=modal-buttons><button data-modal-action=cancel id=wontWork-ok data-t=ok></button></div></div></div></div>");
+	    document.write("<head><meta name=viewport content=\"width=device-width,initial-scale=1\"></head><body><div id=box><div id=main><div id=title><h1 id=clientName></h1><h2 id=activityTitle></h2></div><form id=theForm><div><input id=input type=text name=poppy_identifier></div><div><button data-t=go type=submit></button> <button type=button id=cancel data-t=cancel></button></div></form><div id=message><p data-t=explanation></p></div><div id=matchInfo></div><p id=version></p></div></div><div id=modal><div id=modal-box><div class=modal-body id=loading><p data-t=checking></p><div class=modal-buttons><button data-modal-action=cancel data-t=cancel></button></div></div><div class=modal-body id=found><p data-t=sendingYou></p></div><div class=modal-body id=wontWork><p><strong></strong></p><p data-t=wontWorkNowWhat></p><div class=modal-buttons><button data-modal-action=cancel id=wontWork-ok data-t=ok></button></div></div></div></div></body>");
 	    applyBaseStyles(style);
 	    let matchInfo = $('#matchInfo');
 	    matchlist.forEach(matchOption => {
-	        let matchDetail = document.createElement('li');
+	        let matchDetail = document.createElement('div');
 	        matchDetail.textContent = (matchOption.accept ? 'Accept ' : 'Offer ') + (matchOption.accept || matchOption.offer) + ' ' + (matchOption.hint && Array.isArray(matchOption.hint.types) ? matchOption.hint.types.join(', ') : '');
 	        matchInfo.appendChild(matchDetail);
 	    });
@@ -2428,7 +2434,7 @@
 	            setState({ openModal: { id: 'found' } });
 	            leaving = true;
 	            dialog.origins.push(getOrigin(result.url));
-	            popup.location.replace(result.url);
+	            dialog.proxy.contentWindow.pio_nav(dialog.popup, result.url);
 	        }).catch(error => {
 	            if (cancelled)
 	                return;
@@ -2448,6 +2454,10 @@
 	            });
 	        });
 	    });
+	    $('#cancel').addEventListener('click', e => {
+	        dialog.cancel();
+	    });
+	    $('#version').innerText = 'poppyio ' + version;
 	    document.body.addEventListener('click', e => {
 	        let modalAction = e.target.getAttribute('data-modal-action');
 	        if (modalAction) {
@@ -2484,7 +2494,8 @@
 	        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 	        margin: '0',
 	        backgroundColor: 'white',
-	        color: 'black'
+	        color: 'black',
+	        textAlign: 'center'
 	    });
 	    style('html,body', { height: '100%' });
 	    style('#box', {
@@ -2509,14 +2520,11 @@
 	        marginBottom: '0.2rem',
 	        fontSize: '1.5rem'
 	    });
-	    style('#theForm', {
-	        display: 'flex',
-	        flexDirection: 'row'
-	    });
+	    style('#theForm', { display: 'block' });
 	    style('#input', { width: '100%' });
 	    style('#theForm button', {
-	        width: '10rem',
-	        marginLeft: '1rem'
+	        width: '6rem',
+	        margin: '0.5rem'
 	    });
 	    style('#modal', {
 	        position: 'absolute',
@@ -2537,6 +2545,7 @@
 	    });
 	    style('.modal-buttons', { textAlign: 'center' });
 	    style('.modal-buttons button', { width: '10rem' });
+	    style('#matchInfo, #version', { fontSize: '0.7rem' });
 	}
 
 	let base = Poppy.any();
