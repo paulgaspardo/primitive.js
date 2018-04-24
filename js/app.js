@@ -976,8 +976,13 @@
 	                if (this.state !== 'closed') {
 	                    this.state = 'closed';
 	                    removeEventListener('unload', this.cancel);
-	                    if (this.popup)
-	                        this.proxy.contentWindow.pio_close(this.popup);
+	                    if (this.popup) {
+	                        try {
+	                            this.popup.close();
+	                        } catch (e) {
+	                            this.proxy.contentWindow.pio_close(this.popup);
+	                        }
+	                    }
 	                    this.proxy.parentNode.removeChild(this.proxy);
 	                }
 	            };
@@ -1033,9 +1038,7 @@
 	            let inject = (name, func) => {
 	                proxy.contentWindow[name] = func;
 	                if (!options.noInject) {
-	                    let script = proxy.contentDocument.createElement('script');
-	                    script.innerText = `${ name }=${ func.toString() }`;
-	                    proxy.contentDocument.body.appendChild(script);
+	                    proxy.contentDocument.write(`<script>${ name }=${ func.toString() }</script>`);
 	                }
 	            };
 	            if (!this.intercepted) {
@@ -1051,8 +1054,11 @@
 	                inject('pio_close', popup => {
 	                    popup.close();
 	                });
-	                let script = proxy.contentDocument.createElement('script');
-	                proxy.contentWindow.pio_nav(popup, 'about:blank');
+	                try {
+	                    popup.location.replace('about:blank');
+	                } catch (e) {
+	                    proxy.contentWindow.pio_nav(popup, 'about:blank');
+	                }
 	                // popup.location.replace('about:blank');
 	                // Detect if the popup is closed. I don't think there's an event
 	                // for us to listen for so we poll. :(
@@ -1711,7 +1717,7 @@
 	/**
 	 * Version of poppyio.js
 	 */
-	const version = '0.0.3';
+	const version = '0.0.4';
 
 	/** Translated strings used by launchDialog ($Lang$) */
 	var strings = {
@@ -2434,7 +2440,11 @@
 	            setState({ openModal: { id: 'found' } });
 	            leaving = true;
 	            dialog.origins.push(getOrigin(result.url));
-	            dialog.proxy.contentWindow.pio_nav(dialog.popup, result.url);
+	            try {
+	                dialog.popup.location.replace(result.url);
+	            } catch (e) {
+	                dialog.proxy.contentWindow.pio_nav(dialog.popup, result.url);
+	            }
 	        }).catch(error => {
 	            if (cancelled)
 	                return;
