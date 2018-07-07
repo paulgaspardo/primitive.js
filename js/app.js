@@ -1278,10 +1278,8 @@
 	    let controlChannel = new MessageChannel();
 	    let session = undefined;
 	    let requestMessage = {
-	        'https://poppy.io/a/to-host': {
-	            request: myMatchlist,
-	            lang: dialog.opener.lang
-	        }
+	        request: myMatchlist,
+	        lang: dialog.opener.lang
 	    };
 	    // Trusted origins (browser extensions and same origin) get extra information
 	    // suitable for implementing a launcher
@@ -1293,7 +1291,7 @@
 	        };
 	    }
 	    // Inform service of request and wait for connect()
-	    trigger.source.postMessage(requestMessage, trigger.origin, [controlChannel.port1]);
+	    trigger.source.postMessage({ 'https://poppy.io/a/to-host': requestMessage }, trigger.origin, [controlChannel.port1]);
 	    let controlPort = controlChannel.port2;
 	    controlPort.onmessage = ev => {
 	        // Await connect message
@@ -1717,7 +1715,7 @@
 	/**
 	 * Version of poppyio.js
 	 */
-	const version = '0.0.4';
+	const version = '0.0.6';
 
 	/** Translated strings used by launchDialog ($Lang$) */
 	var strings = {
@@ -2323,12 +2321,15 @@
 	    }
 	    return bytes;
 	}
-	var namecheckKeys = { 'https://poppy.io/a/namecheck': 'mLSFDoakajER2ueB82T/+zDYFNJF1xonCkNspbUL4WU=' };
+	var namecheckKeys = {
+	    'https://poppy.io/a/namecheck': 'mLSFDoakajER2ueB82T/+zDYFNJF1xonCkNspbUL4WU=',
+	    'https://poppy.io/#namecheck.1804': 'Ypl5StmhX6X9TgATcaNjFgwMqwxi1Jk1cqgrkq6OQ1A='
+	};
 	function verifyNamecheck(resolving, keyName, signed, result) {
 	    let keyBytes = bytesFromBase64(namecheckKeys[keyName]);
 	    let signedBytes = bytesFromBase64(signed);
-	    let tmp = new Uint8Array(signed.length);
-	    let mlen = crypto_sign_open(tmp, signedBytes, signed.length, keyBytes);
+	    let tmp = new Uint8Array(signedBytes.length);
+	    let mlen = crypto_sign_open(tmp, signedBytes, signedBytes.length, keyBytes);
 	    if (mlen < 0)
 	        return false;
 	    let mByteString = '';
@@ -2501,7 +2502,7 @@
 	}
 	function applyBaseStyles(style) {
 	    style('body', {
-	        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+	        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 	        margin: '0',
 	        backgroundColor: 'white',
 	        color: 'black',
