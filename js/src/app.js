@@ -1,8 +1,10 @@
 import * as ui from "./ui.js";
 import Canvas from "./canvas.js";
 import Optimizer from "./optimizer.js";
-import Poppy from "poppyio/use-en.mjs";
 import { dataURItoBlob } from "./util.js";
+
+import "poppyio/install-en.mjs";
+import { PoppyClient } from "poppyio/poppy-client.mjs";
 
 const nodes = {
 	output: document.querySelector("#output"),
@@ -58,26 +60,35 @@ function go(original, cfg) {
 }
 
 var url;
+async function onPick(e) {
+	try {
+		let pick = await new PoppyClient()
+			.createRequest({
+				prompt: 'Select an image to primitivize',
+				serviceUrl: e.target.dataset.poppy
+			})
+			.connect({
+				accepting: ['content-blob', 'content-download'],
+				having: {
+					multiple: false,
+					contentType: 'image/*'
+				}
+			});
 
-var basePoppy = Poppy.with({
-	clientName: "primitive.js"
-});
+		if (!pick.offer[0]) return;
 
-function onPick(e) {
-	basePoppy.with({ url: e.target.getAttribute('data-poppy') }).accept("image/*").then(offered => {
-		if (!offered) return;
-		window.offered = offered;
-		if (!offered) return;
-		if (url) URL.revokeObjectURL(url);
-
-		var img = new Image;
+		let offer = pick.offer[0];
+		let img = new Image;
 		img.crossOrigin = true;
-		if (offered.data.location) {
-			url = img.src = offered.data.location;
-		} else if (offered.data.contents) {
-			url = img.src = URL.createObjectURL(offered.data.contents);
+		if (offer.blob instanceof Blob) {
+			if (url) URL.revokeObjectURL(url);
+			url = img.src = URL.createObjectURL(offer.blob);
+		} else if (typeof offer.download === 'string') {
+			if (url) URL.revokeObjectURL(url);
+			url = img.src = offer.download;
+		} else {
+			throw new Error('Did not recieve a valid image offer');
 		}
-
 		img.onload = () => {
 			var maxDimension = Math.max(img.width, img.height);
 			if (maxDimension > 200) {
@@ -89,10 +100,13 @@ function onPick(e) {
 				document.getElementById('thumbnail').appendChild(img);
 			}
 		};
-	}).catch(error => {
-		console.error(error);
-		alert('Error: ' + error);
-	});
+		img.onerror = () => {
+			alert('unable to load image');
+		}
+	} catch (e) {
+		console.error(e);
+		alert('Error: ' + e.message);
+	}
 }
 
 function onSubmit(e) {
@@ -103,41 +117,49 @@ function onSubmit(e) {
 
 function onSave(e) {
 	let canvas = document.querySelector('#raster canvas');
-	basePoppy.with({ url: e.target.getAttribute('data-poppy') }).offer('image/png', () => {
-		if (typeof canvas.toBlob === 'function') {
-			return new Promise(resolve => {
-				canvas.toBlob(resolve, 'image/png');
-			}).then(blob => {
-				return Promise.resolve({
-					contents: blob
+	try {
+		new PoppyClient()
+		.createRequest({
+			prompt: 'Save primitivized image',
+			serviceUrl: e.target.dataset.poppy
+		})
+		.connect({
+			offering: 'content-blob',
+			having: {
+				contentType: 'image/png'
+			},
+			async deliver(acceptor) {
+				let blob;
+				if (typeof canvas.toBlob === 'function') {
+					blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+				} else {
+					blob = dataURItoBlob(canvas.toDataURL('image/png'));
+				}
+				let result = await acceptor.postOffer({
+					blob
 				});
-			});
-		} else {
-			return {
-				contents: dataURItoBlob(canvas.toDataURL('image/png'))
-			};
-		}
-	}).then(response => {
-		if (!response || !response.data) return;
-		let accepted = response.data;
-		let savedTo = document.getElementById("savedTo");
-		let link = document.getElementById("savedToLink");
-		if (accepted && typeof accepted.link === "string") {
-			savedTo.style.display = "inline";
-			if (accepted.link.startsWith("http://") || accepted.link.startsWith("https://")) {
-				link.textContent = accepted.link;
-				link.href = accepted.link;
-			} else {
-				link.removeAttribute("href");
-				link.textContent = "Possibly unsafe URL " + accepted.link;
+				let accepted = result.data[0];
+				if (!accepted) return;
+				let savedTo = document.getElementById("savedTo");
+				let link = document.getElementById("savedToLink");
+				if (typeof accepted.link === "string") {
+					savedTo.style.display = "inline";
+					if (accepted.link.startsWith("http://") || accepted.link.startsWith("https://")) {
+						link.textContent = accepted.link;
+						link.href = accepted.link;
+					} else {
+						link.removeAttribute("href");
+						link.textContent = "Possibly unsafe URL " + accepted.link;
+					}
+				} else {
+					savedTo.style.display = "none";
+				}
 			}
-		} else {
-			savedTo.style.display = "none";
-		}
-	}).catch(error => {
-		console.error(error);
-		alert('Error: ' + error);
-	});
+		});
+	} catch (e) {
+		alert('Error: ' + e.message);
+		console.error(e);
+	}
 }
 
 function $$(sel) {

@@ -14,7 +14,7 @@
   "license": "MIT",
   "devDependencies": {
     "less": "^3.0.2",
-    "poppyio": "https://js.poppy.io/0.0.6/poppyio-0.0.6.tgz",
+    "poppyio": "https://js.poppy.io/0.0.10-20200704224307219.snows/poppyio-0.0.10-20200704224307219.snows.tgz",
     "rollup": "^0.58.2",
     "rollup-plugin-node-resolve": "^3.3.0",
     "rollup-watch": "^4.3.1"
