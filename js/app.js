@@ -1679,7 +1679,7 @@
 	    // return true;
 	}
 
-	function getVersion() { return "0.0.10-20200704224241660.whoremongeries"; }
+	function getVersion() { return "0.0.10-20200704224307219.snows"; }
 
 	function writeBasicLauncherHtml(document) { document.write("<!DOCTYPE HTML><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\"></head><body><div id=box><div id=main><div id=title><h1 id=clientName></h1><h2 id=activityTitle></h2></div><form id=theForm><div><input id=input type=text name=poppy_identifier></div><div><button data-t=go type=submit></button> <button type=button id=cancel data-t=cancel></button></div></form><div id=message><p data-t=explanation></p></div><div id=ood data-t=outOfDate></div><div id=version></div><div id=matchInfo></div></div></div><div id=modal><div id=modal-box><div class=modal-body id=loading><p data-t=checking></p><div class=modal-buttons><button data-modal-action=cancel data-t=cancel></button></div></div><div class=modal-body id=found><p data-t=sendingYou></p></div><div class=modal-body id=wontWork><p><strong></strong></p><p data-t=wontWorkNowWhat></p><div class=modal-buttons><button data-modal-action=cancel id=wontWork-ok data-t=ok></button></div></div></div></div></body></html>"); }
 
